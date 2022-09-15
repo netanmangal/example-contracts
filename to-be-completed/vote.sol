@@ -1,4 +1,4 @@
-pragma solidity ^0.6.4;
+pragma solidity ^0.8.7;
 
 contract cityPoll {
     
@@ -9,32 +9,39 @@ contract cityPoll {
     }
 
 
-    mapping() public cities; //mapping city Id with the City ctruct - cityId should be uint256
-    mapping() hasVoted; //mapping to check if the address/account has voted or not
+    mapping(uint256 => City) public cities; //mapping city Id with the City ctruct - cityId should be uint256
+    mapping(address => bool) hasVoted; //mapping to check if the address/account has voted or not
 
     address owner;
     uint256 public cityCount = 0; // number of city added
-    constructor() public {
-    
-    //TODO set contract caller as owner
-    //TODO set some intitial cities.
+    constructor() {
+        //TODO set contract caller as owner
+        owner = msg.sender;
+        //TODO set some intitial cities.
+        addCity("Mumbai");
     }
  
  
-    function addCity() public {
+    function addCity(string memory name_) public {
       //  TODO: add city to the CityStruct
-
+      cities[cityCount] = City({ cityName: name_, vote: 0 });
+      cityCount++;
     }
     
-    function vote() public {
-        
+    function vote(uint256 id_) public {
         //TODO Vote the selected city through cityID
+        require(hasVoted[msg.sender] == false, "You have already voted!!!");
+        cities[id_].vote++;
+        hasVoted[msg.sender] = true;
+    }
 
+    function getCity(uint256 id_) public view returns (string memory) {
+        // TODO get the city details through cityID
+        return cities[id_].cityName;
     }
-    function getCity() public view returns (string memory) {
-     // TODO get the city details through cityID
-    }
-    function getVote() public view returns (uint256) {
-    // TODO get the vote of the city with its ID
+
+    function getVote(uint256 id_) public view returns (uint256) {
+        // TODO get the vote of the city with its ID
+        return cities[id_].vote;
     }
 }
