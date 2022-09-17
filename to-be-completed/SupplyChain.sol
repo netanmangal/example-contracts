@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.7;
 
 contract SupplyChain {
@@ -64,7 +65,7 @@ contract SupplyChain {
     _;
     uint _price = items[_sku].price;
     uint amountToRefund = msg.value - _price;
-    items[_sku].buyer.transfer(amountToRefund);
+    payable(items[_sku].buyer).transfer(amountToRefund);
   }
 
   /* For each of the following modifiers, use what you learned about modifiers
@@ -74,20 +75,35 @@ contract SupplyChain {
    so checking that Item.State == ForSale is not sufficient to check that an Item is for sale.
    Hint: What item properties will be non-zero when an Item has been added?
    */
-  modifier forSale
-  modifier sold
-  modifier shipped
-  modifier received
+  modifier forSale(Item storage item_) {
+      require(item_.state == State.ForSale && item_.price != 0, "Item not ForSale");
+      _;
+  }
+  modifier sold(Item storage item_) {
+      require(item_.state == State.Sold, "Item not Sold");
+      _;
+  }
 
+  modifier shipped(Item storage item_) {
+      require(item_.state == State.Shipped, "Item not Shipped");
+      _;
+  }
+  
+  modifier received(Item storage item_) {
+      require(item_.state == State.Received, "Item not Received");
+      _;
+  }
 
-  constructor() public {
+  constructor() {
     /* Here, set the owner as the person who instantiated the contract
        and set your skuCount to 0. */
+       owner = msg.sender;
+       skuCount = 0;
   }
 
   function addItem(string memory _name, uint _price) public returns(bool){
     emit LogForSale(skuCount);
-    items[skuCount] = Item({name: _name, sku: skuCount, price: _price, state: State.ForSale, seller: msg.sender, buyer: address(0)});
+    items[skuCount] = Item({name: _name, sku: skuCount, price: _price, state: State.ForSale, seller: payable(msg.sender), buyer: address(0)});
     skuCount = skuCount + 1;
     return true;
   }
@@ -100,19 +116,44 @@ contract SupplyChain {
 
   function buyItem(uint sku)
     public
-  {}
+    payable 
+    forSale(items[sku])
+    paidEnough(items[sku].price)
+    checkValue(sku)
+  {
+        Item storage item = items[sku];
+        item.seller.transfer(item.price);
+        item.buyer = msg.sender;
+        item.state = State.Sold;
+
+        emit LogForSale(sku);
+  }
 
   /* Add 2 modifiers to check if the item is sold already, and that the person calling this function
   is the seller. Change the state of the item to shipped. Remember to call the event associated with this function!*/
   function shipItem(uint sku)
     public
-  {}
+    sold(items[sku])
+    verifyCaller(items[sku].seller)
+  {
+      Item storage item = items[sku];
+      item.state = State.Shipped;
+
+      emit LogShipped(sku);
+  }
 
   /* Add 2 modifiers to check if the item is shipped already, and that the person calling this function
   is the buyer. Change the state of the item to received. Remember to call the event associated with this function!*/
   function receiveItem(uint sku)
     public
-  {}
+    shipped(items[sku])
+    verifyCaller(items[sku].buyer)
+  {
+      Item storage item = items[sku];
+      item.state = State.Received;
+
+      emit LogReceived(sku);
+  }
 
   /* We have these functions completed so we can run tests, just ignore it :) */
   function fetchItem(uint _sku) public view returns (string memory name, uint sku, uint price, uint state, address seller, address buyer) {
